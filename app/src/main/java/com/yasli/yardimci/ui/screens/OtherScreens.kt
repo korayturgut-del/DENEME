@@ -52,7 +52,7 @@ import com.yasli.yardimci.ui.theme.Line
 import com.yasli.yardimci.ui.theme.Mavi
 import com.yasli.yardimci.ui.theme.Muted
 import com.yasli.yardimci.ui.theme.Paper
-import com.yasli.yardimci.ui.theme.SosRed
+import com.yasli.yardimci.ui.theme.SosKirmizi
 import com.yasli.yardimci.ui.theme.Turuncu
 import com.yasli.yardimci.ui.theme.Yesil
 import com.yasli.yardimci.util.ContactHelper
@@ -132,7 +132,7 @@ fun RemindersScreen(onGeri: () -> Unit) {
             BuyukButon("KAYDET", Turuncu) {
                 scope.launch {
                     val id = db.reminderDao().ekle(Reminder(baslik = baslik.ifBlank { "Hatırlatıcı" }, saat = saat))
-                    AlarmScheduler.planla(context, 10000 + id, baslik.ifBlank { "Hatırlatıcı" }, saat)
+                    AlarmScheduler.planla(context, (10000 + id).toInt(), baslik.ifBlank { "Hatırlatıcı" }, saat)
                     Tts.konus("Hatırlatıcı kaydedildi.")
                     ekleme = false
                 }
@@ -306,7 +306,7 @@ fun MedicinesScreen(onGeri: () -> Unit) {
             BuyukButon("KAYDET", Kirmizi) {
                 scope.launch {
                     val id = db.medicineDao().ekle(Medicine(ad = ad.ifBlank { "İlaç" }, doz = doz, saat = saat))
-                    AlarmScheduler.planla(context, 20000 + id, ad.ifBlank { "İlaç" }, saat)
+                    AlarmScheduler.planla(context, (20000 + id).toInt(), ad.ifBlank { "İlaç" }, saat)
                     Tts.konus("İlaç kaydedildi.")
                     ekleme = false
                 }
@@ -412,7 +412,7 @@ fun CallConfirmScreen(ad: String, tel: String, onVazgec: () -> Unit, onAra: () -
             Text("$ad aranacak", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink, textAlign = TextAlign.Center)
             Text(tel, fontSize = 22.sp, color = Muted)
             Spacer(Modifier.height(40.dp))
-            BuyukButon("VAZGEÇ", SosRed, onVazgec)
+            BuyukButon("VAZGEÇ", SosKirmizi, onVazgec)
         }
     }
 }

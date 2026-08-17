@@ -46,7 +46,7 @@ import com.yasli.yardimci.ui.theme.Line
 import com.yasli.yardimci.ui.theme.Mavi
 import com.yasli.yardimci.ui.theme.Muted
 import com.yasli.yardimci.ui.theme.Paper
-import com.yasli.yardimci.ui.theme.SosRed
+import com.yasli.yardimci.ui.theme.SosKirmizi
 import com.yasli.yardimci.ui.theme.Turuncu
 import com.yasli.yardimci.ui.theme.Yesil
 import com.yasli.yardimci.util.Prefs
@@ -157,7 +157,7 @@ fun HomeScreen(onGit: (Screen) -> Unit, onAra: (String, String) -> Unit) {
                     })
                 },
             shape = RoundedCornerShape(20.dp),
-            color = SosRed
+            color = SosKirmizi
         ) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text("SOS", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)

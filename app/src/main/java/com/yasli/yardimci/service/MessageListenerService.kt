@@ -33,25 +33,20 @@ class MessageListenerService : NotificationListenerService() {
         val metin = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         if (metin.isBlank()) return
 
-        val result = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                AppDatabase.get(this@MessageListenerService)
-                    .notificationLogDao()
-                    .ekle(
-                        NotificationLog(
-                            kaynak = kaynak,
-                            kimden = baslik,
-                            metin = metin,
-                            zaman = System.currentTimeMillis()
-                        )
+            AppDatabase.get(this@MessageListenerService)
+                .notificationLogDao()
+                .ekle(
+                    NotificationLog(
+                        kaynak = kaynak,
+                        kimden = baslik,
+                        metin = metin,
+                        zaman = System.currentTimeMillis()
                     )
-                Tts.init(this@MessageListenerService)
-                if (Prefs.sesAcik(this@MessageListenerService)) {
-                    Tts.konus("$baslik yazdı: $metin")
-                }
-            } finally {
-                result.finish()
+                )
+            Tts.init(this@MessageListenerService)
+            if (Prefs.sesAcik(this@MessageListenerService)) {
+                Tts.konus("$baslik yazdı: $metin")
             }
         }
     }
