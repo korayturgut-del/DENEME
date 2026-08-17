@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Arama + rehber (runtime izin) -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <!-- Android 13+ bildirim izni (runtime) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Alarmların yeniden başlatmada / saat değişiminde yaşaması -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- İlaç/hatırlatıcı alarmı için tam ekran uyarı (alarm kategorisi) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Yedek yol: exact alarm (asıl yol setAlarmClock) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.YasliYardimci">
+
+        <!-- Ana ekran -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Tam ekran ilaç/hatırlatıcı alarm ekranı -->
+        <activity
+            android:name=".ui.screens.AlarmActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+
+        <!-- 3 sn Vazgeç sayacı ekranı -->
+        <activity
+            android:name=".ui.screens.CallConfirmActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
+        <!-- WhatsApp/SMS bildirim dinleyicisi -->
+        <service
+            android:name=".service.MessageListenerService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Yeniden başlatma ve saat değişimi -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receiver.TimeChangedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Alarm tetikleyici (broadcast) -->
+        <receiver
+            android:name=".receiver.AlarmReceiver"
+            android:exported="false" />
+    </application>
+</manifest>
