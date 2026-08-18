@@ -20,8 +20,8 @@ android {
         applicationId = "com.yasli.yardimci"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"${props.getProperty("deepseekKey", "")}\"")
     }
 

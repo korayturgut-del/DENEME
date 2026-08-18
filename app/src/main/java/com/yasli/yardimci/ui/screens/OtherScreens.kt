@@ -478,6 +478,10 @@ fun SettingsScreen(onGeri: () -> Unit) {
             Prefs.setSes(context, ses)
             if (ses) Tts.konus("Sesli okuma açıldı.") else Tts.konus("Sesli okuma kapatıldı.")
         }
+        Text(
+            "Sürüm: ${com.yasli.yardimci.BuildConfig.VERSION_NAME}",
+            fontSize = 16.sp, color = Muted
+        )
     }
 }
 
