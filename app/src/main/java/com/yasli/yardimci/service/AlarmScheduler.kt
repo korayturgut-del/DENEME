@@ -30,26 +30,28 @@ object AlarmScheduler {
         saat: String,
         tekrar: String = "bugun",
         tip: String = "hatirlatici"
-    ): Boolean = try {
+    ): Boolean {
         if (!exactAlarmVarMi(context)) return false
-        val alarmMgr = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val cal = Calendar.getInstance().apply {
-            val parcalar = saat.split(":")
-            set(Calendar.HOUR_OF_DAY, parcalar[0].toIntOrNull() ?: 8)
-            set(Calendar.MINUTE, parcalar.getOrNull(1)?.toIntOrNull() ?: 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+        return try {
+            val alarmMgr = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val cal = Calendar.getInstance().apply {
+                val parcalar = saat.split(":")
+                set(Calendar.HOUR_OF_DAY, parcalar[0].toIntOrNull() ?: 8)
+                set(Calendar.MINUTE, parcalar.getOrNull(1)?.toIntOrNull() ?: 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+            }
+            val pi = PendingIntent.getBroadcast(
+                context, requestCode,
+                AlarmReceiver.intent(context, baslik, saat, tekrar, tip, requestCode),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            alarmMgr.setAlarmClock(AlarmManager.AlarmClockInfo(cal.timeInMillis, pi), pi)
+            true
+        } catch (e: Exception) {
+            false
         }
-        val pi = PendingIntent.getBroadcast(
-            context, requestCode,
-            AlarmReceiver.intent(context, baslik, saat, tekrar, tip, requestCode),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmMgr.setAlarmClock(AlarmManager.AlarmClockInfo(cal.timeInMillis, pi), pi)
-        true
-    } catch (e: Exception) {
-        false
     }
 
     fun iptal(context: Context, requestCode: Int) {

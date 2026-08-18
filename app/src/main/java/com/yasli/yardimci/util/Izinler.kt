@@ -21,27 +21,27 @@ object Izinler {
         if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    fun Context.eksik(): List<String> =
+    fun eksik(context: Context): List<String> =
         runtimeListesi().filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }
 
-    fun Context.tamamiVerildi(): Boolean = eksik().isEmpty()
+    fun tamamiVerildi(context: Context): Boolean = eksik(context).isEmpty()
 
-    fun Context.exactAlarmVerildi(): Boolean =
+    fun exactAlarmVerildi(context: Context): Boolean =
         Build.VERSION.SDK_INT < 31 ||
-            (getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
+            (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
 
-    fun Context.bildirimErisimiVarMi(): Boolean =
-        NotificationManagerCompat.from(this).getEnabledListenerPackages().contains(packageName)
+    fun bildirimErisimiVarMi(context: Context): Boolean =
+        NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
 
-    fun Context.exactAlarmAyariIntent(): Intent =
-        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))
+    fun exactAlarmAyariIntent(context: Context): Intent =
+        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}"))
 
-    fun Context.bildirimErisimiIntent(): Intent =
+    fun bildirimErisimiIntent(context: Context): Intent =
         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
 
-    fun Context.tamEkranAyariIntent(): Intent =
+    fun tamEkranAyariIntent(context: Context): Intent =
         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
 }

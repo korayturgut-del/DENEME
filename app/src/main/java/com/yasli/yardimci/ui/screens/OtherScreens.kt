@@ -163,9 +163,9 @@ fun RemindersScreen(onGeri: () -> Unit) {
             OutlinedTextField(saat, { saat = it }, label = { Text("Saat (HH:mm)") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp), keyboardOptions = klavyeAyari(), keyboardActions = doneAksiyon(klavye))
             Text("Tekrar:", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TekrarButonu("Bugün", "bugun", tekrar) { tekrar = it }
-                TekrarButonu("Her gün", "hergun", tekrar) { tekrar = it }
-                TekrarButonu("Hafta içi", "haftaici", tekrar) { tekrar = it }
+                TekrarButonu("Bugün", "bugun", tekrar, Modifier.weight(1f)) { tekrar = it }
+                TekrarButonu("Her gün", "hergun", tekrar, Modifier.weight(1f)) { tekrar = it }
+                TekrarButonu("Hafta içi", "haftaici", tekrar, Modifier.weight(1f)) { tekrar = it }
             }
             BuyukButon("KAYDET", Turuncu) {
                 klavye?.hide()
@@ -193,10 +193,10 @@ private fun tekrarAdi(t: String): String = when (t) {
 }
 
 @Composable
-private fun TekrarButonu(ad: String, deger: String, secili: String, onSec: (String) -> Unit) {
+private fun TekrarButonu(ad: String, deger: String, secili: String, modifier: Modifier = Modifier, onSec: (String) -> Unit) {
     Button(
         onClick = { onSec(deger) },
-        modifier = Modifier.weight(1f).height(56.dp),
+        modifier = modifier.height(56.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (secili == deger) Turuncu else CardWhite,
             contentColor = if (secili == deger) Color.White else Ink
