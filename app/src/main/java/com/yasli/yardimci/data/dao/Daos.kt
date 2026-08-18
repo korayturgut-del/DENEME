@@ -71,6 +71,15 @@ interface NotificationLogDao {
     @Query("SELECT * FROM notification_log WHERE kaynak = :kaynak ORDER BY zaman DESC LIMIT 50")
     fun son(kaynak: String): Flow<List<NotificationLog>>
 
+    @Query("SELECT * FROM notification_log WHERE kaynak = :kaynak AND okundu = 0 ORDER BY zaman DESC LIMIT 50")
+    fun okunmamis(kaynak: String): Flow<List<NotificationLog>>
+
+    @Query("SELECT COUNT(*) FROM notification_log WHERE kaynak = :kaynak AND okundu = 0")
+    fun okunmamisSayisi(kaynak: String): Flow<Int>
+
+    @Query("UPDATE notification_log SET okundu = 1 WHERE id = :id")
+    suspend fun okunduYap(id: Long)
+
     @Insert
     suspend fun ekle(l: NotificationLog)
 }

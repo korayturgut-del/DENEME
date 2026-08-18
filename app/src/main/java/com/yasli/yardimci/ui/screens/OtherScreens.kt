@@ -47,6 +47,7 @@ import com.yasli.yardimci.data.AppDatabase
 import com.yasli.yardimci.data.entity.Medicine
 import com.yasli.yardimci.data.entity.MedicineLog
 import com.yasli.yardimci.data.entity.QuickDial
+import com.yasli.yardimci.data.entity.temizMetin
 import com.yasli.yardimci.data.entity.Reminder
 import com.yasli.yardimci.service.AlarmScheduler
 import com.yasli.yardimci.service.SmsSender
@@ -243,7 +244,9 @@ fun ContactsScreen(onGeri: () -> Unit, onAra: (String, String) -> Unit) {
 fun MessagesScreen(onGeri: () -> Unit) {
     val context = LocalContext.current
     val db = remember { AppDatabase.get(context) }
+    val scope = rememberCoroutineScope()
     val mesajlar by db.notificationLogDao().son("sms").collectAsState(initial = emptyList())
+    val okunmamisSayisi by db.notificationLogDao().okunmamisSayisi("sms").collectAsState(initial = 0)
     val hizli by db.quickDialDao().hepsi().collectAsState(initial = emptyList())
     var yazma by remember { mutableStateOf(false) }
     var secilenKisi by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -253,18 +256,36 @@ fun MessagesScreen(onGeri: () -> Unit) {
 
     Column(Modifier.fillMaxSize().background(Paper).padding(18.dp)) {
         Baslik("MESAJLAR", onGeri)
+        if (!yazma && okunmamisSayisi > 0) {
+            Text("$okunmamisSayisi okunmamış mesaj var", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Turuncu)
+        }
         if (!yazma) {
             LazyColumn(Modifier.weight(1f)) {
                 items(mesajlar) { m ->
+                    val kimden = temizMetin(m.kimden)
+                    val metin = temizMetin(m.metin)
                     Row(
-                        Modifier.fillMaxWidth().padding(vertical = 8.dp).background(CardWhite, RoundedCornerShape(16.dp)).padding(16.dp),
+                        Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            .background(if (m.okundu) CardWhite else Turuncu.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                            .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(m.kimden, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
-                            Text("\"${m.metin}\"", fontSize = 20.sp, color = Muted)
+                            Text(if (m.okundu) kimden else "● $kimden", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
+                            Text("\"${metin.ifBlank { "..." }}\"", fontSize = 20.sp, color = Muted)
                         }
-                        Button(onClick = { Tts.konus("${m.kimden} dedi: ${m.metin}") }, colors = ButtonDefaults.buttonColors(containerColor = Mavi)) { Text("Oku", fontSize = 18.sp) }
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    db.notificationLogDao().okunduYap(m.id)
+                                    Tts.konus(
+                                        if (metin.isBlank()) "Bu mesajın içeriği okunamıyor."
+                                        else "$kimden dedi: $metin"
+                                    )
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Mavi)
+                        ) { Text("Oku", fontSize = 18.sp) }
                     }
                 }
             }
@@ -304,6 +325,7 @@ fun WhatsAppScreen(onGeri: () -> Unit) {
     val context = LocalContext.current
     val db = remember { AppDatabase.get(context) }
     val mesajlar by db.notificationLogDao().son("whatsapp").collectAsState(initial = emptyList())
+    val okunmamisSayisi by db.notificationLogDao().okunmamisSayisi("whatsapp").collectAsState(initial = 0)
     val scope = rememberCoroutineScope()
     val erisimVar = Izinler.bildirimErisimiVarMi(context)
 
@@ -317,26 +339,50 @@ fun WhatsAppScreen(onGeri: () -> Unit) {
         } else {
             Text("Bildirim erişimi: açık", fontSize = 18.sp, color = Yesil)
         }
+        if (okunmamisSayisi > 0) {
+            Text("$okunmamisSayisi okunmamış mesaj var", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Turuncu)
+        }
         LazyColumn(Modifier.weight(1f)) {
             items(mesajlar) { m ->
+                val kimden = temizMetin(m.kimden)
+                val metin = temizMetin(m.metin)
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 8.dp).background(CardWhite, RoundedCornerShape(16.dp)).padding(16.dp),
+                    Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                        .background(if (m.okundu) CardWhite else Turuncu.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(m.kimden, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
-                        Text("\"${m.metin}\"", fontSize = 20.sp, color = Muted)
+                        Text(if (m.okundu) kimden else "● $kimden", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Text("\"${metin.ifBlank { "..." }}\"", fontSize = 20.sp, color = Muted)
                     }
-                    Button(onClick = { Tts.konus("${m.kimden} yazdı: ${m.metin}") }, colors = ButtonDefaults.buttonColors(containerColor = Mavi)) { Text("Oku", fontSize = 18.sp) }
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                db.notificationLogDao().okunduYap(m.id)
+                                Tts.konus(
+                                    if (metin.isBlank()) "Bu mesajın içeriği okunamıyor."
+                                    else "$kimden yazdı: $metin"
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Mavi)
+                    ) { Text("Oku", fontSize = 18.sp) }
                 }
             }
         }
         BuyukButon("HEPSİNİ OKU", Yesil) {
             scope.launch {
-                Tts.konus("Mesajlar sırayla okunuyor.")
-                mesajlar.forEach { m ->
-                    Tts.konus("${m.kimden} yazdı: ${m.metin}")
-                    delay(3500)
+                val okunacaklar = mesajlar
+                    .map { temizMetin(it.kimden) to temizMetin(it.metin) }
+                    .filter { it.second.isNotBlank() }
+                if (okunacaklar.isEmpty()) {
+                    Tts.konus("Okunacak mesaj yok.")
+                } else {
+                    // Kuyrukla okunur: QUEUE_ADD birbirini kesmez
+                    Tts.ekle("Mesajlar sırayla okunuyor.")
+                    okunacaklar.forEach { (k, m) -> Tts.ekle("$k yazdı: $m.") }
+                    mesajlar.forEach { db.notificationLogDao().okunduYap(it.id) }
                 }
             }
         }

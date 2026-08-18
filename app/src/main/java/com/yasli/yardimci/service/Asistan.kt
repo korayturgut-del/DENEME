@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.yasli.yardimci.data.AppDatabase
 import com.yasli.yardimci.data.entity.Medicine
 import com.yasli.yardimci.data.entity.Reminder
+import com.yasli.yardimci.data.entity.temizMetin
 import com.yasli.yardimci.util.ContactHelper
 import com.yasli.yardimci.util.Prefs
 import kotlinx.coroutines.Dispatchers
@@ -41,23 +42,35 @@ object Asistan {
 
     suspend fun yerelMod(context: Context): String = withContext(Dispatchers.IO) {
         val db = AppDatabase.get(context)
-        val wa = db.notificationLogDao().son("whatsapp").first().take(3)
-        val sms = db.notificationLogDao().son("sms").first().take(3)
+        val wa = db.notificationLogDao().son("whatsapp").first()
+            .map { temizMetin(it.kimden) to temizMetin(it.metin) }
+            .filter { it.second.isNotBlank() }
+            .take(3)
+        val sms = db.notificationLogDao().son("sms").first()
+            .map { temizMetin(it.kimden) to temizMetin(it.metin) }
+            .filter { it.second.isNotBlank() }
+            .take(3)
         if (wa.isEmpty() && sms.isEmpty()) {
             "İnternet yok ve kayıtlı mesaj bulunamadı."
         } else {
             buildString {
                 append("İnternet yok. Son mesajlarınız: ")
-                wa.forEach { append("${it.kimden} yazdı: ${it.metin}. ") }
-                sms.forEach { append("${it.kimden}: ${it.metin}. ") }
+                wa.forEach { append("${it.first} yazdı: ${it.second}. ") }
+                sms.forEach { append("${it.first}: ${it.second}. ") }
             }
         }
     }
 
     private suspend fun baglamMetni(context: Context): String = withContext(Dispatchers.IO) {
         val db = AppDatabase.get(context)
-        val wa = db.notificationLogDao().son("whatsapp").first().take(5)
-        val sms = db.notificationLogDao().son("sms").first().take(5)
+        val wa = db.notificationLogDao().son("whatsapp").first()
+            .map { temizMetin(it.kimden) to temizMetin(it.metin) }
+            .filter { it.second.isNotBlank() }
+            .take(5)
+        val sms = db.notificationLogDao().son("sms").first()
+            .map { temizMetin(it.kimden) to temizMetin(it.metin) }
+            .filter { it.second.isNotBlank() }
+            .take(5)
         val hatirlaticilar = db.reminderDao().aktif().first()
         val ilaclar = db.medicineDao().aktif().first()
         val kisiler = db.quickDialDao().hepsi().first()
@@ -67,9 +80,9 @@ object Asistan {
             kisiler.forEach { appendLine("- ${it.ad}: ${it.telefon}") }
             if (sos.isNotBlank()) appendLine("SOS numarası: $sos")
             appendLine("SON WHATSAPP MESAJLARI:")
-            wa.forEach { appendLine("- ${it.kimden}: ${it.metin}") }
+            wa.forEach { appendLine("- ${it.first}: ${it.second}") }
             appendLine("SON SMS:")
-            sms.forEach { appendLine("- ${it.kimden}: ${it.metin}") }
+            sms.forEach { appendLine("- ${it.first}: ${it.second}") }
             appendLine("AKTİF HATIRLATICILAR:")
             hatirlaticilar.forEach { appendLine("- ${it.baslik} @ ${it.saat} (${it.tekrar})") }
             appendLine("AKTİF İLAÇLAR:")
@@ -129,6 +142,23 @@ object Asistan {
             "ses_kapat" -> {
                 Prefs.setSes(context, false)
                 "Sesli okuma kapatıldı."
+            }
+            "mesaj_oku" -> {
+                val db = AppDatabase.get(context)
+                val wa = db.notificationLogDao().okunmamis("whatsapp").first()
+                val sms = db.notificationLogDao().okunmamis("sms").first()
+                val liste = (wa + sms).sortedByDescending { it.zaman }.take(5)
+                if (liste.isEmpty()) {
+                    "Okunmamış mesajınız yok."
+                } else {
+                    val metin = liste.joinToString(" ") { m ->
+                        val k = temizMetin(m.kimden)
+                        val t = temizMetin(m.metin)
+                        if (t.isBlank()) "" else "$k yazdı: $t."
+                    }.trim()
+                    liste.forEach { db.notificationLogDao().okunduYap(it.id) }
+                    metin.ifBlank { "Okunmamış mesajınız yok." }
+                }
             }
             else -> "Bu isteği anlayamadım."
         }

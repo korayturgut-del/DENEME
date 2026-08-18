@@ -31,6 +31,13 @@ object Tts {
         }
     }
 
+    // Kuyruğa ekler — sıralı okuma (mesaj listesi) için; mevcut konuşmayı kesmez
+    fun ekle(text: String) {
+        if (hazir) {
+            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "yasli-tts")
+        }
+    }
+
     // F11: cümle cümle konuşur — ilk cümle anında, kalanlar sırayla
     fun konusSirali(text: String) {
         if (!hazir) return

@@ -32,7 +32,7 @@ object DeepseekClient {
     private val SYSTEM_PROMPT =
         "Sen yaşlı bir kullanıcının Türkçe sesli yardımcısısın. Kısa, nazik ve net konuş; " +
             "tek cümle tercih et. İşlem gerektiren isteklerde islem aracını kullan " +
-            "(aksiyon: ara, sms, hatirlatici_ekle, ilac_ekle, ses_ac, ses_kapat). " +
+            "(aksiyon: ara, sms, mesaj_oku, hatirlatici_ekle, ilac_ekle, ses_ac, ses_kapat). " +
             "İşlem gerektirmiyorsa soruyu doğrudan yanıtla."
 
     suspend fun yanitla(istem: String): Yanit = withContext(Dispatchers.IO) {
@@ -109,7 +109,7 @@ object DeepseekClient {
                 put("properties", JSONObject().apply {
                     put("aksiyon", JSONObject().apply {
                         put("type", "string")
-                        put("enum", JSONArray(listOf("ara", "sms", "hatirlatici_ekle", "ilac_ekle", "ses_ac", "ses_kapat")))
+                        put("enum", JSONArray(listOf("ara", "sms", "mesaj_oku", "hatirlatici_ekle", "ilac_ekle", "ses_ac", "ses_kapat")))
                     })
                     put("hedef", JSONObject().apply {
                         put("type", "string")

@@ -5,6 +5,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.yasli.yardimci.data.AppDatabase
 import com.yasli.yardimci.data.entity.NotificationLog
+import com.yasli.yardimci.data.entity.temizMetin
 import com.yasli.yardimci.util.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,7 @@ class MessageListenerService : NotificationListenerService() {
         if (sbn == null) return
 
         val kaynak = when {
-            sbn.packageName == "com.whatsapp" -> "whatsapp"
+            sbn.packageName == "com.whatsapp" || sbn.packageName == "com.whatsapp.w4b" -> "whatsapp"
             sbn.packageName == "com.google.android.apps.messaging" ||
                 sbn.packageName == "com.android.mms" ||
                 sbn.packageName.startsWith("com.android.messaging") -> "sms"
@@ -29,8 +30,16 @@ class MessageListenerService : NotificationListenerService() {
         }
 
         val extras = sbn.notification?.extras ?: return
-        val baslik = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
-        val metin = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        fun c(k: String): String = extras.getCharSequence(k)?.toString() ?: ""
+        var baslik = c(Notification.EXTRA_TITLE)
+        var metin = c(Notification.EXTRA_TEXT)
+        if (metin.isBlank()) metin = c(Notification.EXTRA_BIG_TEXT)
+        if (metin.isBlank()) {
+            metin = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+                ?.joinToString(" ") { it.toString() } ?: ""
+        }
+        baslik = temizMetin(baslik)
+        metin = temizMetin(metin)
         // R4: Android 15 OTP redaksiyonu — boş/redakte içerik kaydedilmez
         if (metin.isBlank()) return
 

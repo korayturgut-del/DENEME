@@ -12,3 +12,7 @@ data class NotificationLog(
     val zaman: Long,     // epoch millis
     val okundu: Boolean = false
 )
+
+// Bazı bildirimler gerçek "null" string'i taşır (uygulama tarafı kaynaklı) — konuşma/bağlamda temizlenir
+fun temizMetin(s: String): String =
+    if (s.equals("null", ignoreCase = true) || s.isBlank()) "" else s.trim()
