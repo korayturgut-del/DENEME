@@ -31,22 +31,27 @@ class MessageListenerService : NotificationListenerService() {
         val extras = sbn.notification?.extras ?: return
         val baslik = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
         val metin = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+        // R4: Android 15 OTP redaksiyonu — boş/redakte içerik kaydedilmez
         if (metin.isBlank()) return
 
         CoroutineScope(Dispatchers.IO).launch {
-            AppDatabase.get(this@MessageListenerService)
-                .notificationLogDao()
-                .ekle(
-                    NotificationLog(
-                        kaynak = kaynak,
-                        kimden = baslik,
-                        metin = metin,
-                        zaman = System.currentTimeMillis()
+            try {
+                AppDatabase.get(this@MessageListenerService)
+                    .notificationLogDao()
+                    .ekle(
+                        NotificationLog(
+                            kaynak = kaynak,
+                            kimden = baslik,
+                            metin = metin,
+                            zaman = System.currentTimeMillis()
+                        )
                     )
-                )
-            Tts.init(this@MessageListenerService)
-            if (Prefs.sesAcik(this@MessageListenerService)) {
-                Tts.konus("$baslik yazdı: $metin")
+                Tts.init(this@MessageListenerService)
+                if (Prefs.sesAcik(this@MessageListenerService)) {
+                    Tts.konus("$baslik yazdı: $metin")
+                }
+            } catch (e: Exception) {
+                // F6: sessiz veri kaybı yerine kontrollü hata — log yok, çökme yok
             }
         }
     }

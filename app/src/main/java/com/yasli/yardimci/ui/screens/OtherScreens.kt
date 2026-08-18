@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,14 +36,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yasli.yardimci.data.AppDatabase
 import com.yasli.yardimci.data.entity.Medicine
 import com.yasli.yardimci.data.entity.MedicineLog
-import com.yasli.yardimci.data.entity.NotificationLog
+import com.yasli.yardimci.data.entity.QuickDial
 import com.yasli.yardimci.data.entity.Reminder
 import com.yasli.yardimci.service.AlarmScheduler
 import com.yasli.yardimci.service.SmsSender
@@ -48,7 +54,6 @@ import com.yasli.yardimci.service.Tts
 import com.yasli.yardimci.ui.theme.CardWhite
 import com.yasli.yardimci.ui.theme.Ink
 import com.yasli.yardimci.ui.theme.Kirmizi
-import com.yasli.yardimci.ui.theme.Line
 import com.yasli.yardimci.ui.theme.Mavi
 import com.yasli.yardimci.ui.theme.Muted
 import com.yasli.yardimci.ui.theme.Paper
@@ -56,9 +61,9 @@ import com.yasli.yardimci.ui.theme.SosKirmizi
 import com.yasli.yardimci.ui.theme.Turuncu
 import com.yasli.yardimci.ui.theme.Yesil
 import com.yasli.yardimci.util.ContactHelper
+import com.yasli.yardimci.util.Izinler
 import com.yasli.yardimci.util.Prefs
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /* ---------- Ortak bileşenler ---------- */
@@ -95,6 +100,19 @@ private fun BuyukButon(metin: String, renk: Color, onClick: () -> Unit) {
     ) { Text(metin, fontSize = 24.sp, fontWeight = FontWeight.Bold) }
 }
 
+private fun saatGecerli(s: String): Boolean =
+    Regex("^([01]?\\d|2[0-3]):[0-5]\\d$").matches(s.trim())
+
+private fun klavyeAyari() = KeyboardOptions(imeAction = ImeAction.Done)
+
+private fun doneAksiyon(klavye: SoftwareKeyboardController?) =
+    KeyboardActions(onDone = { klavye?.hide() })
+
+private fun alarmIzinYoksaYonlendir(context: android.content.Context) {
+    Tts.konus("Alarm izni yok. Kesin alarm iznini verin.")
+    context.startActivity(Izinler.exactAlarmAyariIntent(context))
+}
+
 /* ---------- HATIRLATICILAR ---------- */
 
 @Composable
@@ -104,6 +122,7 @@ fun RemindersScreen(onGeri: () -> Unit) {
     val scope = rememberCoroutineScope()
     val liste by db.reminderDao().aktif().collectAsState(initial = emptyList())
     var ekleme by remember { mutableStateOf(false) }
+    val klavye = LocalSoftwareKeyboardController.current
 
     Column(Modifier.fillMaxSize().background(Paper).padding(18.dp)) {
         Baslik("HATIRLATICILAR", onGeri)
@@ -115,25 +134,49 @@ fun RemindersScreen(onGeri: () -> Unit) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(r.baslik, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
-                        Text("Saat: ${r.saat}", fontSize = 18.sp, color = Muted)
+                        Text("Saat: ${r.saat} · ${tekrarAdi(r.tekrar)}", fontSize = 18.sp, color = Muted)
                     }
                     Button(
                         onClick = { Tts.konus(r.baslik) },
                         colors = ButtonDefaults.buttonColors(containerColor = Mavi)
                     ) { Text("Oku", fontSize = 18.sp) }
+                    Spacer(Modifier.width(8.dp))
+                    // F5: silme — alarm iptaliyle birlikte
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                db.reminderDao().sil(r.id)
+                                AlarmScheduler.iptal(context, (AlarmScheduler.REMINDER_TABAN + r.id).toInt())
+                                Tts.konus("Hatırlatıcı silindi.")
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Kirmizi)
+                    ) { Text("SİL", fontSize = 18.sp) }
                 }
             }
         }
         if (ekleme) {
             var baslik by remember { mutableStateOf("") }
             var saat by remember { mutableStateOf("09:00") }
+            var tekrar by remember { mutableStateOf("bugun") }
             OutlinedTextField(baslik, { baslik = it }, label = { Text("Ne hatırlatayım?") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
-            OutlinedTextField(saat, { saat = it }, label = { Text("Saat (HH:mm)") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
+            OutlinedTextField(saat, { saat = it }, label = { Text("Saat (HH:mm)") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp), keyboardOptions = klavyeAyari(), keyboardActions = doneAksiyon(klavye))
+            Text("Tekrar:", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TekrarButonu("Bugün", "bugun", tekrar) { tekrar = it }
+                TekrarButonu("Her gün", "hergun", tekrar) { tekrar = it }
+                TekrarButonu("Hafta içi", "haftaici", tekrar) { tekrar = it }
+            }
             BuyukButon("KAYDET", Turuncu) {
+                klavye?.hide()
+                if (!saatGecerli(saat)) {
+                    Tts.konus("Saat geçersiz. Lütfen 09:00 gibi girin.")
+                    return@BuyukButon
+                }
                 scope.launch {
-                    val id = db.reminderDao().ekle(Reminder(baslik = baslik.ifBlank { "Hatırlatıcı" }, saat = saat))
-                    AlarmScheduler.planla(context, (10000 + id).toInt(), baslik.ifBlank { "Hatırlatıcı" }, saat)
-                    Tts.konus("Hatırlatıcı kaydedildi.")
+                    val id = db.reminderDao().ekle(Reminder(baslik = baslik.ifBlank { "Hatırlatıcı" }, saat = saat.trim(), tekrar = tekrar))
+                    val ok = AlarmScheduler.planla(context, (AlarmScheduler.REMINDER_TABAN + id).toInt(), baslik.ifBlank { "Hatırlatıcı" }, saat.trim(), tekrar, "hatirlatici")
+                    if (!ok) alarmIzinYoksaYonlendir(context) else Tts.konus("Hatırlatıcı kaydedildi.")
                     ekleme = false
                 }
             }
@@ -141,6 +184,25 @@ fun RemindersScreen(onGeri: () -> Unit) {
             BuyukButon("+ YENİ HATIRLATICI", Turuncu) { ekleme = true }
         }
     }
+}
+
+private fun tekrarAdi(t: String): String = when (t) {
+    "hergun" -> "Her gün"
+    "haftaici" -> "Hafta içi"
+    else -> "Bugün"
+}
+
+@Composable
+private fun TekrarButonu(ad: String, deger: String, secili: String, onSec: (String) -> Unit) {
+    Button(
+        onClick = { onSec(deger) },
+        modifier = Modifier.weight(1f).height(56.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (secili == deger) Turuncu else CardWhite,
+            contentColor = if (secili == deger) Color.White else Ink
+        ),
+        shape = RoundedCornerShape(14.dp)
+    ) { Text(ad, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
 }
 
 /* ---------- REHBER ---------- */
@@ -182,8 +244,12 @@ fun MessagesScreen(onGeri: () -> Unit) {
     val context = LocalContext.current
     val db = remember { AppDatabase.get(context) }
     val mesajlar by db.notificationLogDao().son("sms").collectAsState(initial = emptyList())
+    val hizli by db.quickDialDao().hepsi().collectAsState(initial = emptyList())
     var yazma by remember { mutableStateOf(false) }
-    var secilenKisi by remember { mutableStateOf<String?>(null) }
+    var secilenKisi by remember { mutableStateOf<Pair<String, String>?>(null) }
+
+    // F2: gerçek kişiler — telefon rehberi + hızlı arama (sabit numara yok)
+    val kisiler = remember { ContactHelper.oku(context) } + hizli.map { it.ad to it.telefon }
 
     Column(Modifier.fillMaxSize().background(Paper).padding(18.dp)) {
         Baslik("MESAJLAR", onGeri)
@@ -205,16 +271,23 @@ fun MessagesScreen(onGeri: () -> Unit) {
             BuyukButon("MESAJ YAZ", Mavi) { yazma = true }
         } else if (secilenKisi == null) {
             Text("Kime yazalım?", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            BuyukButon("Kızım — 0532 111 22 33", Yesil) { secilenKisi = "0532 111 22 33" }
-            BuyukButon("Oğlum — 0533 444 55 66", Mavi) { secilenKisi = "0533 444 55 66" }
+            if (kisiler.isEmpty()) {
+                Text("Rehber boş veya izin yok. Ayarlardan hızlı arama kişisi ekleyebilirsiniz.", fontSize = 18.sp, color = Muted)
+            } else {
+                LazyColumn(Modifier.weight(1f)) {
+                    items(kisiler) { (ad, no) ->
+                        BuyukButon("$ad — $no", Yesil) { secilenKisi = ad to no }
+                    }
+                }
+            }
             BuyukButon("Vazgeç", Kirmizi) { yazma = false }
         } else {
             Text("Ne yazayım?", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             val sablonlar = listOf("İyiyim", "Ara beni", "Eve döndüm")
             sablonlar.forEach { metin ->
                 BuyukButon(metin, Yesil) {
-                    SmsSender.gonder(secilenKisi!!, metin)
-                    Tts.konus("Mesaj gönderildi: $metin")
+                    val gitti = SmsSender.gonder(secilenKisi!!.second, metin)
+                    Tts.konus(if (gitti) "Mesaj gönderildi: $metin" else "Mesaj gönderilemedi. SMS iznini kontrol edin.")
                     yazma = false
                     secilenKisi = null
                 }
@@ -232,10 +305,18 @@ fun WhatsAppScreen(onGeri: () -> Unit) {
     val db = remember { AppDatabase.get(context) }
     val mesajlar by db.notificationLogDao().son("whatsapp").collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    val erisimVar = Izinler.bildirimErisimiVarMi(context)
 
     Column(Modifier.fillMaxSize().background(Paper).padding(18.dp)) {
         Baslik("WHATSAPP", onGeri)
-        Text("Bildirim erişimi: açık olmalı", fontSize = 18.sp, color = Muted)
+        if (!erisimVar) {
+            Text("Bildirim erişimi kapalı — mesajlar okunamıyor.", fontSize = 18.sp, color = Kirmizi)
+            BuyukButon("BİLDİRİM ERİŞİMİNİ AÇ", Mavi) {
+                context.startActivity(Izinler.bildirimErisimiIntent(context))
+            }
+        } else {
+            Text("Bildirim erişimi: açık", fontSize = 18.sp, color = Yesil)
+        }
         LazyColumn(Modifier.weight(1f)) {
             items(mesajlar) { m ->
                 Row(
@@ -271,6 +352,7 @@ fun MedicinesScreen(onGeri: () -> Unit) {
     val scope = rememberCoroutineScope()
     val ilaclar by db.medicineDao().aktif().collectAsState(initial = emptyList())
     var ekleme by remember { mutableStateOf(false) }
+    val klavye = LocalSoftwareKeyboardController.current
 
     Column(Modifier.fillMaxSize().background(Paper).padding(18.dp)) {
         Baslik("İLAÇLARIM", onGeri)
@@ -282,7 +364,7 @@ fun MedicinesScreen(onGeri: () -> Unit) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text("${ilac.ad} — ${ilac.saat}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)
-                        Text(ilac.doz, fontSize = 18.sp, color = Muted)
+                        Text("${ilac.doz} · ${tekrarAdi(ilac.gunler)}", fontSize = 18.sp, color = Muted)
                     }
                     Button(
                         onClick = {
@@ -293,6 +375,18 @@ fun MedicinesScreen(onGeri: () -> Unit) {
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Kirmizi)
                     ) { Text("ALINDIM", fontSize = 18.sp) }
+                    Spacer(Modifier.width(8.dp))
+                    // F5: silme — alarm iptaliyle birlikte
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                db.medicineDao().sil(ilac.id)
+                                AlarmScheduler.iptal(context, (AlarmScheduler.MEDICINE_TABAN + ilac.id).toInt())
+                                Tts.konus("İlaç silindi.")
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Muted)
+                    ) { Text("SİL", fontSize = 18.sp) }
                 }
             }
         }
@@ -302,12 +396,17 @@ fun MedicinesScreen(onGeri: () -> Unit) {
             var saat by remember { mutableStateOf("08:00") }
             OutlinedTextField(ad, { ad = it }, label = { Text("İlaç adı") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
             OutlinedTextField(doz, { doz = it }, label = { Text("Doz") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
-            OutlinedTextField(saat, { saat = it }, label = { Text("Saat (HH:mm)") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
+            OutlinedTextField(saat, { saat = it }, label = { Text("Saat (HH:mm)") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp), keyboardOptions = klavyeAyari(), keyboardActions = doneAksiyon(klavye))
             BuyukButon("KAYDET", Kirmizi) {
+                klavye?.hide()
+                if (!saatGecerli(saat)) {
+                    Tts.konus("Saat geçersiz. Lütfen 08:00 gibi girin.")
+                    return@BuyukButon
+                }
                 scope.launch {
-                    val id = db.medicineDao().ekle(Medicine(ad = ad.ifBlank { "İlaç" }, doz = doz, saat = saat))
-                    AlarmScheduler.planla(context, (20000 + id).toInt(), ad.ifBlank { "İlaç" }, saat)
-                    Tts.konus("İlaç kaydedildi.")
+                    val id = db.medicineDao().ekle(Medicine(ad = ad.ifBlank { "İlaç" }, doz = doz, saat = saat.trim(), gunler = "hergun"))
+                    val ok = AlarmScheduler.planla(context, (AlarmScheduler.MEDICINE_TABAN + id).toInt(), ad.ifBlank { "İlaç" }, saat.trim(), "hergun", "ilac")
+                    if (!ok) alarmIzinYoksaYonlendir(context) else Tts.konus("İlaç kaydedildi. Her gün hatırlatılacak.")
                     ekleme = false
                 }
             }
@@ -326,46 +425,84 @@ fun SettingsScreen(onGeri: () -> Unit) {
     val scope = rememberCoroutineScope()
     val kisiler by db.quickDialDao().hepsi().collectAsState(initial = emptyList())
 
-    var k1Ad by remember { mutableStateOf("") }
-    var k1No by remember { mutableStateOf("") }
-    var k2Ad by remember { mutableStateOf("") }
-    var k2No by remember { mutableStateOf("") }
     var sosNo by remember { mutableStateOf(Prefs.sosNo(context)) }
     var ses by remember { mutableStateOf(Prefs.sesAcik(context)) }
-
-    LaunchedEffect(kisiler) {
-        val k = kisiler.take(2)
-        if (k.isNotEmpty()) { k1Ad = k[0].ad; k1No = k[0].telefon }
-        if (k.size > 1) { k2Ad = k[1].ad; k2No = k[1].telefon }
-    }
+    val klavye = LocalSoftwareKeyboardController.current
 
     Column(
-        Modifier.fillMaxSize().background(Paper).verticalScroll(rememberScrollState()).padding(18.dp),
+        Modifier.fillMaxSize().background(Paper).verticalScroll(rememberScrollState()).imePadding().padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Baslik("AYARLAR", onGeri)
-        Text("Hızlı arama 1", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        OutlinedTextField(k1Ad, { k1Ad = it }, label = { Text("Ad") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
-        OutlinedTextField(k1No, { k1No = it }, label = { Text("Telefon") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
-        Text("Hızlı arama 2", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        OutlinedTextField(k2Ad, { k2Ad = it }, label = { Text("Ad") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
-        OutlinedTextField(k2No, { k2No = it }, label = { Text("Telefon") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
+        Text("Hızlı arama kişileri", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        // W1: tam kişi yönetimi — ekle / düzenle / sil
+        kisiler.forEach { k ->
+            KisiSatiri(
+                k = k,
+                onKaydet = { ad, no ->
+                    scope.launch {
+                        db.quickDialDao().guncelle(k.copy(ad = ad.ifBlank { "Kişi" }, telefon = no))
+                        Tts.konus("Kişi kaydedildi.")
+                    }
+                },
+                onSil = {
+                    scope.launch {
+                        db.quickDialDao().sil(k)
+                        Tts.konus("Kişi silindi.")
+                    }
+                }
+            )
+        }
+        Button(
+            onClick = {
+                scope.launch {
+                    db.quickDialDao().ekle(QuickDial(ad = "Yeni Kişi", telefon = "", renk = "green"))
+                    Tts.konus("Yeni kişi eklendi. Adını ve numarasını yazın.")
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(64.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Mavi),
+            shape = RoundedCornerShape(16.dp)
+        ) { Text("+ KİŞİ EKLE", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+
         Text("SOS numarası", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        OutlinedTextField(sosNo, { sosNo = it }, label = { Text("Acil numara") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp))
+        OutlinedTextField(sosNo, { sosNo = it }, label = { Text("Acil numara") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 22.sp), keyboardOptions = klavyeAyari(), keyboardActions = doneAksiyon(klavye))
 
         BuyukButon("KAYDET", Yesil) {
-            scope.launch {
-                val k = kisiler.take(2)
-                if (k.isNotEmpty()) db.quickDialDao().guncelle(k[0].copy(ad = k1Ad, telefon = k1No))
-                if (k.size > 1) db.quickDialDao().guncelle(k[1].copy(ad = k2Ad, telefon = k2No))
-                Prefs.setSosNo(context, sosNo)
-                Tts.konus("Ayarlar kaydedildi.")
-            }
+            klavye?.hide()
+            Prefs.setSosNo(context, sosNo)
+            Tts.konus("Ayarlar kaydedildi.")
         }
         BuyukButon(if (ses) "SES: AÇIK" else "SES: KAPALI", if (ses) Yesil else Muted) {
             ses = !ses
             Prefs.setSes(context, ses)
-            if (ses) Tts.konus("Sesli okuma açıldı.")
+            if (ses) Tts.konus("Sesli okuma açıldı.") else Tts.konus("Sesli okuma kapatıldı.")
+        }
+    }
+}
+
+@Composable
+private fun KisiSatiri(k: QuickDial, onKaydet: (String, String) -> Unit, onSil: () -> Unit) {
+    var ad by remember(k.id) { mutableStateOf(k.ad) }
+    var no by remember(k.id) { mutableStateOf(k.telefon) }
+    val klavye = LocalSoftwareKeyboardController.current
+    Column(
+        Modifier.fillMaxWidth().background(CardWhite, RoundedCornerShape(16.dp)).padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(ad, { ad = it }, label = { Text("Ad") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp), keyboardOptions = klavyeAyari(), keyboardActions = doneAksiyon(klavye))
+        OutlinedTextField(no, { no = it }, label = { Text("Telefon") }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 20.sp), keyboardOptions = klavyeAyari(), keyboardActions = doneAksiyon(klavye))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { klavye?.hide(); onKaydet(ad, no) },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Mavi)
+            ) { Text("KAYDET", fontSize = 18.sp) }
+            Button(
+                onClick = onSil,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Kirmizi)
+            ) { Text("SİL", fontSize = 18.sp) }
         }
     }
 }

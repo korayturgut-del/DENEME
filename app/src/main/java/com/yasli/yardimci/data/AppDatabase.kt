@@ -24,7 +24,7 @@ import com.yasli.yardimci.data.entity.Reminder
         NotificationLog::class
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun quickDialDao(): QuickDialDao

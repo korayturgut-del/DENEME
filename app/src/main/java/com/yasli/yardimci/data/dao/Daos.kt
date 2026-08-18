@@ -37,6 +37,9 @@ interface ReminderDao {
 
     @Update
     suspend fun guncelle(r: Reminder)
+
+    @Query("DELETE FROM reminder WHERE id = :id")
+    suspend fun sil(id: Long)
 }
 
 @Dao
@@ -49,6 +52,9 @@ interface MedicineDao {
 
     @Update
     suspend fun guncelle(m: Medicine)
+
+    @Query("DELETE FROM medicine WHERE id = :id")
+    suspend fun sil(id: Long)
 }
 
 @Dao
@@ -58,9 +64,6 @@ interface MedicineLogDao {
 
     @Insert
     suspend fun ekle(l: MedicineLog)
-
-    @Query("SELECT * FROM medicine_log WHERE ilacId = :ilacId AND tarihSaat >= :baslangic")
-    fun bugun(ilacId: Long, baslangic: Long): Flow<List<MedicineLog>>
 }
 
 @Dao
@@ -70,7 +73,4 @@ interface NotificationLogDao {
 
     @Insert
     suspend fun ekle(l: NotificationLog)
-
-    @Query("UPDATE notification_log SET okundu = 1 WHERE id = :id")
-    suspend fun okunduYap(id: Long)
 }

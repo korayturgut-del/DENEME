@@ -22,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -36,7 +35,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yasli.yardimci.data.AppDatabase
-import com.yasli.yardimci.data.entity.QuickDial
 import com.yasli.yardimci.service.Tts
 import com.yasli.yardimci.ui.Screen
 import com.yasli.yardimci.ui.theme.CardWhite
@@ -55,18 +53,10 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun HomeScreen(onGit: (Screen) -> Unit, onAra: (String, String) -> Unit) {
+fun HomeScreen(onGit: (Screen) -> Unit, onAra: (String, String) -> Unit, onAraHemen: (String, String) -> Unit) {
     val context = LocalContext.current
     val db = remember { AppDatabase.get(context) }
     val kisiler by db.quickDialDao().hepsi().collectAsState(initial = emptyList())
-
-    // İlk açılışta iki örnek kişi (ayarlardan değiştirilebilir)
-    LaunchedEffect(Unit) {
-        if (kisiler.isEmpty()) {
-            db.quickDialDao().ekle(QuickDial(ad = "Kızım", telefon = "0532 111 22 33", renk = "green"))
-            db.quickDialDao().ekle(QuickDial(ad = "Oğlum", telefon = "0533 444 55 66", renk = "blue"))
-        }
-    }
 
     val tarih = remember {
         SimpleDateFormat("EEEE d MMMM", Locale("tr", "TR")).format(Date())
@@ -98,7 +88,10 @@ fun HomeScreen(onGit: (Screen) -> Unit, onAra: (String, String) -> Unit) {
                         .weight(1f)
                         .height(210.dp)
                         .pointerInput(Unit) {
-                            detectTapGestures { if (tel.isNotBlank()) onAra(ad, tel) }
+                            detectTapGestures {
+                                if (tel.isNotBlank()) onAra(ad, tel)
+                                else onGit(Screen.SETTINGS) // F7: boşsa Ayarlar'dan ekle
+                            }
                         },
                     shape = RoundedCornerShape(24.dp),
                     color = renk
@@ -124,6 +117,9 @@ fun HomeScreen(onGit: (Screen) -> Unit, onAra: (String, String) -> Unit) {
                 }
             }
         }
+
+        // ASİSTAN — sesli yardımcı
+        BuyukButon("ASİSTAN", Mavi) { onGit(Screen.ASISTAN) }
 
         // HATIRLATICILAR — tam satır
         BuyukButon("HATIRLATICILAR", Turuncu) { onGit(Screen.REMINDERS) }
@@ -152,7 +148,7 @@ fun HomeScreen(onGit: (Screen) -> Unit, onAra: (String, String) -> Unit) {
                         if (no.isBlank()) {
                             Tts.konus("SOS numarası ayarlarda seçilmemiş.")
                         } else {
-                            onAra("ACİL SOS", no)
+                            onAraHemen("ACİL SOS", no) // F1: SOS anında arar, onay ekranı yok
                         }
                     })
                 },

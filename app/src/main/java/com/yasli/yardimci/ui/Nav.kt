@@ -1,6 +1,6 @@
 package com.yasli.yardimci.ui
 
-enum class Screen { HOME, REMINDERS, CONTACTS, MESSAGES, WHATSAPP, MEDICINES, SETTINGS }
+enum class Screen { HOME, REMINDERS, CONTACTS, MESSAGES, WHATSAPP, MEDICINES, SETTINGS, ASISTAN }
 
 fun ekranAdi(s: Screen): String = when (s) {
     Screen.HOME -> "Ana ekran."
@@ -10,4 +10,5 @@ fun ekranAdi(s: Screen): String = when (s) {
     Screen.WHATSAPP -> "WhatsApp mesajları."
     Screen.MEDICINES -> "İlaçlarım."
     Screen.SETTINGS -> "Ayarlar."
+    Screen.ASISTAN -> "Asistan. Konuşmak için mikrofon tuşuna basın."
 }

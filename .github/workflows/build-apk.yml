@@ -14,6 +14,9 @@ jobs:
       - name: Kaynak kodu al
         uses: actions/checkout@v4
 
+      - name: DeepSeek anahtari (opsiyonel)
+        run: echo "deepseekKey=${{ secrets.DEEPSEEK_API_KEY }}" >> local.properties
+
       - name: Java 17 kur
         uses: actions/setup-java@v4
         with:

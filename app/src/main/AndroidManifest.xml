@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- SMS gönderme (runtime izin) -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!-- Sesli asistan: mikrofon (runtime izin) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Android 13+ bildirim izni (runtime) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -42,12 +49,6 @@
             android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
-
-        <!-- 3 sn Vazgeç sayacı ekranı -->
-        <activity
-            android:name=".ui.screens.CallConfirmActivity"
-            android:exported="false"
-            android:launchMode="singleTop" />
 
         <!-- WhatsApp/SMS bildirim dinleyicisi -->
         <service

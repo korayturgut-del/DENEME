@@ -31,6 +31,20 @@ object Tts {
         }
     }
 
+    // F11: cümle cümle konuşur — ilk cümle anında, kalanlar sırayla
+    fun konusSirali(text: String) {
+        if (!hazir) return
+        val cumleler = text.split(Regex("(?<=[.?!])\\s+")).filter { it.isNotBlank() }
+        cumleler.forEachIndexed { i, c ->
+            tts?.speak(
+                c,
+                if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD,
+                null,
+                "yasli-tts"
+            )
+        }
+    }
+
     fun kapat() {
         tts?.shutdown()
         tts = null

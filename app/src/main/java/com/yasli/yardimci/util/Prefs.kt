@@ -25,4 +25,18 @@ object Prefs {
     fun setSes(context: Context, acik: Boolean) {
         sp(context).edit().putBoolean("ses_acik", acik).apply()
     }
+
+    fun kurulumTamam(context: Context): Boolean =
+        sp(context).getBoolean("kurulum_tamam", false)
+
+    fun setKurulumTamam(context: Context, v: Boolean) {
+        sp(context).edit().putBoolean("kurulum_tamam", v).apply()
+    }
+
+    fun fsiOnaylandi(context: Context): Boolean =
+        sp(context).getBoolean("fsi_onaylandi", false)
+
+    fun setFsiOnaylandi(context: Context, v: Boolean) {
+        sp(context).edit().putBoolean("fsi_onaylandi", v).apply()
+    }
 }
